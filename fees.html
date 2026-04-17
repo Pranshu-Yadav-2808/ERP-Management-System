@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fees</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="erp-app" data-page="fees" data-page-title="Fees">
+    <div class="erp-shell">
+        <aside id="appSidebar"></aside>
+        <div class="erp-main">
+            <header id="appNavbar"></header>
+            <main class="content-area">
+                <section class="page-head">
+                    <div>
+                        <span class="section-kicker">Finance Desk</span>
+                        <h1 class="page-title">Fees Management</h1>
+                        <p class="text-secondary mb-0">Record payments and monitor frontend-only collection history.</p>
+                    </div>
+                </section>
+
+                <section class="row g-4">
+                    <div class="col-xl-4">
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Add Payment</h2>
+                                    <p>Create a new payment entry.</p>
+                                </div>
+                            </div>
+                            <form id="paymentForm" class="row g-3">
+                                <div class="col-12">
+                                    <label class="form-label" for="paymentStudent">Student</label>
+                                    <select class="form-select" id="paymentStudent" required></select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label" for="paymentCourse">Course</label>
+                                    <select class="form-select" id="paymentCourse" required></select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="paymentAmount">Amount</label>
+                                    <input class="form-control" id="paymentAmount" type="number" min="0" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="paymentMethod">Method</label>
+                                    <select class="form-select" id="paymentMethod" required>
+                                        <option>UPI</option>
+                                        <option>Card</option>
+                                        <option>Cash</option>
+                                        <option>Bank Transfer</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="paymentDate">Date</label>
+                                    <input class="form-control" id="paymentDate" type="date" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label" for="paymentStatus">Status</label>
+                                    <select class="form-select" id="paymentStatus" required>
+                                        <option>Paid</option>
+                                        <option>Partial</option>
+                                        <option>Pending</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary primary-action w-100" type="submit">
+                                        <i class="bi bi-wallet2 me-2"></i>Save Payment
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="col-xl-8">
+                        <div class="panel-card">
+                            <div class="panel-header">
+                                <div>
+                                    <h2>Payment History</h2>
+                                    <p>Recent payment entries saved in localStorage.</p>
+                                </div>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table align-middle custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Course</th>
+                                            <th>Amount</th>
+                                            <th>Method</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="paymentsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/script.js"></script>
+</body>
+
+</html>

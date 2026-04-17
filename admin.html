@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="assets/css/style.css">
+</head>
+
+<body>
+
+    <!-- 🔷 Navbar -->
+    <nav class="navbar navbar-dark bg-dark px-4">
+        <span class="navbar-brand">ERP Admin Panel</span>
+        <button class="btn btn-danger" onclick="logout()">Logout</button>
+    </nav>
+
+    <div class="container mt-4">
+
+        <!-- 🔷 Dashboard Cards -->
+        <div class="row g-4">
+
+            <div class="col-md-4">
+                <div class="card text-center p-3 shadow">
+                    <h5>Add Student</h5>
+                    <button class="btn btn-primary mt-2" onclick="showSection('addStudent')">Open</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center p-3 shadow">
+                    <h5>Update Fees</h5>
+                    <button class="btn btn-success mt-2" onclick="showSection('updateFees')">Open</button>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card text-center p-3 shadow">
+                    <h5>Set Deadline</h5>
+                    <button class="btn btn-warning mt-2" onclick="showSection('deadline')">Open</button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- 🔷 Sections -->
+
+        <!-- Add Student -->
+        <div id="addStudent" class="mt-5 d-none">
+            <h4>Add Student</h4>
+            <input class="form-control mb-2" placeholder="Name">
+            <input class="form-control mb-2" placeholder="Phone">
+            <input class="form-control mb-2" placeholder="Email">
+            <input class="form-control mb-2" placeholder="Course">
+            <button class="btn btn-primary">Add</button>
+        </div>
+
+        <!-- Update Fees -->
+        <div id="updateFees" class="mt-5 d-none">
+            <h4>Update Fees</h4>
+            <input class="form-control mb-2" placeholder="Student ID">
+            <input class="form-control mb-2" placeholder="Amount">
+            <button class="btn btn-success">Update</button>
+        </div>
+
+        <!-- Deadline -->
+        <div id="deadline" class="mt-5 d-none">
+            <h4>Set Deadline</h4>
+            <input type="date" class="form-control mb-2">
+            <button class="btn btn-warning">Set</button>
+        </div>
+
+    </div>
+
+    <!-- JS -->
+    <script>
+        function logout() {
+            window.location.href = "index.html";
+        }
+
+        function showSection(sectionId) {
+            document.getElementById("addStudent").classList.add("d-none");
+            document.getElementById("updateFees").classList.add("d-none");
+            document.getElementById("deadline").classList.add("d-none");
+
+            document.getElementById(sectionId).classList.remove("d-none");
+        }
+    </script>
+
+</body>
+
+</html>

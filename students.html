@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Students</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="erp-app" data-page="students" data-page-title="Students">
+    <div class="erp-shell">
+        <aside id="appSidebar"></aside>
+        <div class="erp-main">
+            <header id="appNavbar"></header>
+            <main class="content-area">
+                <section class="page-head with-action">
+                    <div>
+                        <span class="section-kicker">Student Management</span>
+                        <h1 class="page-title">Manage Students</h1>
+                        <p class="text-secondary mb-0">Create, update, and remove student records with localStorage-backed CRUD.</p>
+                    </div>
+                    <button class="btn btn-primary primary-action" data-bs-toggle="modal" data-bs-target="#studentModal">
+                        <i class="bi bi-person-plus me-2"></i>Add Student
+                    </button>
+                </section>
+
+                <section class="panel-card">
+                    <div class="panel-toolbar">
+                        <div class="search-box">
+                            <i class="bi bi-search"></i>
+                            <input type="search" class="form-control" id="studentSearch" placeholder="Search students by name or course">
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table align-middle custom-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Course</th>
+                                    <th>Status</th>
+                                    <th class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsTableBody"></tbody>
+                        </table>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div class="modal fade" id="studentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-0">
+                <div class="modal-header">
+                    <div>
+                        <h2 class="modal-title fs-5" id="studentModalLabel">Add Student</h2>
+                        <p class="text-secondary mb-0 small">Save student profile details into localStorage.</p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <form id="studentForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="studentId">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentName">Full Name</label>
+                                <input class="form-control" id="studentName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentEmail">Email</label>
+                                <input class="form-control" id="studentEmail" type="email" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentCourse">Course</label>
+                                <select class="form-select" id="studentCourse" required></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentStatus">Status</label>
+                                <select class="form-select" id="studentStatus" required>
+                                    <option>Active</option>
+                                    <option>Pending</option>
+                                    <option>Completed</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentPhone">Phone</label>
+                                <input class="form-control" id="studentPhone" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentJoinDate">Join Date</label>
+                                <input class="form-control" id="studentJoinDate" type="date" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary primary-action">Save Student</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="js/script.js"></script>
+</body>
+
+</html>
