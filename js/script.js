@@ -40,6 +40,7 @@ const defaultStudents = [
         id: createId(),
         name: "Aarav Sharma",
         email: "aarav.sharma@example.com",
+        password: "123456",
         phone: "9876543210",
         course: "Full Stack Development",
         status: "Active",
@@ -47,8 +48,9 @@ const defaultStudents = [
     },
     {
         id: createId(),
-        name: "Priya Verma",
+        name: "Anuu Verma",
         email: "priya.verma@example.com",
+        password: "123456",
         phone: "9876501234",
         course: "Python Programming",
         status: "Pending",
@@ -58,6 +60,7 @@ const defaultStudents = [
         id: createId(),
         name: "Rohan Mehta",
         email: "rohan.mehta@example.com",
+        password: "123456",
         phone: "9811102233",
         course: "UI/UX Design",
         status: "Completed",
@@ -95,6 +98,25 @@ const defaultProfile = {
     location: "Bangalore, India",
     bio: "Oversees admissions, fee operations, and reporting workflows for the training institute ERP."
 };
+
+const demoAccounts = {
+    admin: {
+        email: "admin@erp.com",
+        password: "123456",
+        name: "Pranshu Kapoor",
+        role: "Administrator",
+        redirect: "dashboard.html"
+    },
+    student: {
+        email: "priya.verma@example.com",
+        password: "123456",
+        name: "Anuu Verma",
+        role: "Student",
+        redirect: "student-dashboard.html"
+    }
+};
+
+let attendanceDraft = {};
 
 document.addEventListener("DOMContentLoaded", () => {
     seedInitialData();
@@ -280,28 +302,78 @@ function renderNavbar() {
 
 function initLoginPage() {
     const loginForm = document.getElementById("loginForm");
-    const fillDemoBtn = document.getElementById("fillDemoBtn");
+    const fillAdminDemoBtn = document.getElementById("fillAdminDemoBtn");
+    const fillStudentDemoBtn = document.getElementById("fillStudentDemoBtn");
     const emailField = document.getElementById("userEmail");
     const passwordField = document.getElementById("userPassword");
     const roleField = document.getElementById("userRole");
+    const message = document.getElementById("loginMessage");
 
-    fillDemoBtn.addEventListener("click", () => {
-        emailField.value = "admin@erp.com";
-        passwordField.value = "123456";
-        roleField.value = "Administrator";
+    fillAdminDemoBtn.addEventListener("click", () => {
+        emailField.value = demoAccounts.admin.email;
+        passwordField.value = demoAccounts.admin.password;
+        roleField.value = "admin";
+        message.classList.add("d-none");
+    });
+
+    fillStudentDemoBtn.addEventListener("click", () => {
+        emailField.value = demoAccounts.student.email;
+        passwordField.value = demoAccounts.student.password;
+        roleField.value = "student";
+        message.classList.add("d-none");
     });
 
     loginForm.addEventListener("submit", (event) => {
         event.preventDefault();
 
+        const role = roleField.value;
+        const email = emailField.value.trim().toLowerCase();
+        const password = passwordField.value.trim();
+
+        if (role === "admin") {
+            if (email !== demoAccounts.admin.email || password !== demoAccounts.admin.password) {
+                showLoginError("Invalid admin email or password.");
+                return;
+            }
+
+            saveSession({
+                name: demoAccounts.admin.name,
+                role: demoAccounts.admin.role,
+                email: demoAccounts.admin.email
+            });
+
+            window.location.href = demoAccounts.admin.redirect;
+            return;
+        }
+
+        const savedStudent = getStudents().find((item) => {
+            const studentEmail = (item.email || "").toLowerCase();
+            const studentPassword = item.password || "123456";
+            return studentEmail === email && studentPassword === password;
+        });
+        const demoStudent = email === demoAccounts.student.email && password === demoAccounts.student.password
+            ? demoAccounts.student
+            : null;
+        const student = savedStudent || demoStudent;
+
+        if (!student) {
+            showLoginError("Invalid student email or password. Try priya.verma@example.com / 123456.");
+            return;
+        }
+
         saveSession({
-            name: "Nisha Kapoor",
-            role: roleField.value,
-            email: emailField.value.trim() || "admin@erp.com"
+            name: student.name,
+            role: "Student",
+            email: student.email
         });
 
-        window.location.href = "dashboard.html";
+        window.location.href = "student-dashboard.html";
     });
+
+    function showLoginError(text) {
+        message.textContent = text;
+        message.classList.remove("d-none");
+    }
 }
 
 function initRegistrationPage() {
@@ -317,6 +389,7 @@ function initRegistrationPage() {
             id: createId(),
             name: document.getElementById("regName").value.trim(),
             email: document.getElementById("regEmail").value.trim(),
+            password: document.getElementById("regPassword").value.trim(),
             phone: document.getElementById("regPhone").value.trim(),
             course: document.getElementById("regCourse").value,
             status: document.getElementById("regStatus").value,
@@ -680,17 +753,23 @@ function renderPaymentsTable() {
 function initAttendancePage() {
     const dateInput = document.getElementById("attendanceDate");
     dateInput.value = new Date().toISOString().split("T")[0];
+    loadAttendanceDraft(dateInput.value);
 
     renderAttendanceTable();
-    dateInput.addEventListener("change", renderAttendanceTable);
+    renderAttendanceHistory();
+
+    dateInput.addEventListener("change", () => {
+        loadAttendanceDraft(dateInput.value);
+        renderAttendanceTable();
+    });
+
+    document.getElementById("submitAttendanceBtn").addEventListener("click", submitAttendance);
 }
 
 function renderAttendanceTable() {
     const students = getStudents();
     const tbody = document.getElementById("attendanceTableBody");
     const date = document.getElementById("attendanceDate").value;
-    const attendanceData = getAttendance();
-    const dailyAttendance = attendanceData[date] || {};
 
     if (!students.length) {
         tbody.innerHTML = emptyTableRow("No students available for attendance.", 4);
@@ -698,7 +777,7 @@ function renderAttendanceTable() {
     }
 
     tbody.innerHTML = students.map((student) => {
-        const status = dailyAttendance[student.id] || "Pending";
+        const status = attendanceDraft[student.id] || "Pending";
         return `
             <tr>
                 <td>${student.name}</td>
@@ -718,21 +797,31 @@ function renderAttendanceTable() {
 }
 
 function setAttendance(studentId, status) {
-    const date = document.getElementById("attendanceDate").value;
-    const attendance = getAttendance();
-    if (!attendance[date]) {
-        attendance[date] = {};
-    }
-    attendance[date][studentId] = status;
-    saveAttendance(attendance);
+    attendanceDraft[studentId] = status;
+    hideAttendanceMessage();
     renderAttendanceTable();
 }
 
+function submitAttendance() {
+    const dateInput = document.getElementById("attendanceDate");
+    const date = dateInput.value;
+    if (!date) return;
+
+    const attendance = getAttendance();
+    attendance[date] = {
+        ...attendanceDraft,
+        _submittedAt: new Date().toISOString()
+    };
+    saveAttendance(attendance);
+    showAttendanceMessage(`Saved for ${formatDate(date)}.`);
+    renderAttendanceTable();
+    renderAttendanceHistory();
+}
+
 function renderAttendanceSummary(date) {
-    const attendance = getAttendance()[date] || {};
     const students = getStudents();
-    const presentCount = Object.values(attendance).filter((status) => status === "Present").length;
-    const absentCount = Object.values(attendance).filter((status) => status === "Absent").length;
+    const presentCount = students.filter((student) => attendanceDraft[student.id] === "Present").length;
+    const absentCount = students.filter((student) => attendanceDraft[student.id] === "Absent").length;
     const pendingCount = Math.max(students.length - presentCount - absentCount, 0);
 
     document.getElementById("attendanceSummary").innerHTML = `
@@ -753,6 +842,75 @@ function renderAttendanceSummary(date) {
             <p>Still pending update</p>
         </div>
     `;
+}
+
+function loadAttendanceDraft(date) {
+    attendanceDraft = getDailyAttendanceStatuses(getAttendance()[date] || {});
+    hideAttendanceMessage();
+}
+
+function getDailyAttendanceStatuses(dailyAttendance) {
+    return Object.fromEntries(
+        Object.entries(dailyAttendance).filter(([key]) => !key.startsWith("_"))
+    );
+}
+
+function renderAttendanceHistory() {
+    const historyBody = document.getElementById("attendanceHistoryBody");
+    if (!historyBody) return;
+
+    const attendance = getAttendance();
+    const students = getStudents();
+    const dates = Object.keys(attendance).sort((a, b) => new Date(b) - new Date(a));
+
+    if (!dates.length) {
+        historyBody.innerHTML = emptyTableRow("No submitted attendance history yet.", 5);
+        return;
+    }
+
+    historyBody.innerHTML = dates.map((date) => {
+        const dailyAttendance = getDailyAttendanceStatuses(attendance[date] || {});
+        const presentCount = students.filter((student) => dailyAttendance[student.id] === "Present").length;
+        const absentCount = students.filter((student) => dailyAttendance[student.id] === "Absent").length;
+        const pendingCount = Math.max(students.length - presentCount - absentCount, 0);
+
+        return `
+            <tr>
+                <td>${formatDate(date)}</td>
+                <td>${presentCount}</td>
+                <td>${absentCount}</td>
+                <td>${pendingCount}</td>
+                <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" type="button" onclick="viewAttendanceHistory('${date}')">
+                        View Sheet
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join("");
+}
+
+function viewAttendanceHistory(date) {
+    const dateInput = document.getElementById("attendanceDate");
+    dateInput.value = date;
+    loadAttendanceDraft(date);
+    renderAttendanceTable();
+    showAttendanceMessage(`Showing saved sheet for ${formatDate(date)}.`);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function showAttendanceMessage(text) {
+    const message = document.getElementById("attendanceSaveMessage");
+    if (!message) return;
+    message.textContent = text;
+    message.classList.remove("d-none");
+}
+
+function hideAttendanceMessage() {
+    const message = document.getElementById("attendanceSaveMessage");
+    if (!message) return;
+    message.textContent = "";
+    message.classList.add("d-none");
 }
 
 function initProfilePage() {

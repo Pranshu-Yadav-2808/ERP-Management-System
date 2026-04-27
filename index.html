@@ -66,9 +66,8 @@
                                     <div class="mb-3">
                                         <label for="userRole" class="form-label">Role</label>
                                         <select class="form-select" id="userRole" required>
-                                            <option value="Administrator">Administrator</option>
-                                            <option value="Faculty Coordinator">Faculty Coordinator</option>
-                                            <option value="Accounts Manager">Accounts Manager</option>
+                                            <option value="admin">Admin</option>
+                                            <option value="student">Student</option>
                                         </select>
                                     </div>
 
@@ -90,6 +89,8 @@
                                         <a href="registration.html" class="small text-decoration-none">New registration</a>
                                     </div>
 
+                                    <p class="text-danger small fw-semibold mb-3 d-none" id="loginMessage"></p>
+
                                     <button class="btn btn-primary w-100 btn-lg primary-action" type="submit">
                                         <i class="bi bi-box-arrow-in-right me-2"></i>Login to Dashboard
                                     </button>
@@ -98,9 +99,13 @@
                                 <div class="demo-login mt-4">
                                     <div>
                                         <span class="text-muted small d-block">Demo Credentials</span>
-                                        <strong>admin@erp.com</strong> / <strong>123456</strong>
+                                        <strong>Admin:</strong> admin@erp.com / 123456<br>
+                                        <strong>Student:</strong> priya.verma@example.com / 123456
                                     </div>
-                                    <button class="btn btn-outline-primary btn-sm" id="fillDemoBtn" type="button">Use Demo</button>
+                                    <div class="d-flex gap-2 flex-wrap justify-content-end">
+                                        <button class="btn btn-outline-primary btn-sm" id="fillAdminDemoBtn" type="button">Admin</button>
+                                        <button class="btn btn-outline-primary btn-sm" id="fillStudentDemoBtn" type="button">Student</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
