@@ -14,7 +14,7 @@
     <nav class="student-topbar">
         <div>
             <span class="student-topbar-title">Student Dashboard</span>
-            <small>Profile, fees, documents, and academic timeline</small>
+            <small>Profile, fees, payments, and academic timeline</small>
         </div>
         <button class="btn btn-danger btn-sm" id="studentLogoutBtn" type="button">
             <i class="bi bi-box-arrow-left me-1"></i>Logout
@@ -63,13 +63,10 @@
                     <button class="nav-link" id="fees-tab" data-bs-toggle="tab" data-bs-target="#feesTab" type="button" role="tab">Fees</button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#paymentsTab" type="button" role="tab">Payments</button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="attendance-tab" data-bs-toggle="tab" data-bs-target="#attendanceTab" type="button" role="tab">Attendance</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="exam-tab" data-bs-toggle="tab" data-bs-target="#examTab" type="button" role="tab">Exam</button>
-                </li>
-                <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="documents-tab" data-bs-toggle="tab" data-bs-target="#documentsTab" type="button" role="tab">Documents</button>
                 </li>
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="timeline-tab" data-bs-toggle="tab" data-bs-target="#timelineTab" type="button" role="tab">Timeline</button>
@@ -144,6 +141,58 @@
                     </div>
                 </div>
 
+                <div class="tab-pane fade" id="paymentsTab" role="tabpanel" aria-labelledby="payments-tab">
+                    <div class="student-section">
+                        <h2>Payments</h2>
+                        <div class="student-info-grid">
+                            <span>Total Fees</span>
+                            <strong id="paymentTotalFees">Rs. 50,000</strong>
+                            <span>Paid Amount</span>
+                            <strong id="paymentPaidAmount">Rs. 20,000</strong>
+                            <span>Pending Amount</span>
+                            <strong id="paymentPendingAmount">Rs. 30,000</strong>
+                            <span>Payment Deadline</span>
+                            <strong>30 Sept 2026</strong>
+                        </div>
+                    </div>
+
+                    <div class="student-section">
+                        <h2>Pay Now</h2>
+                        <div class="row g-3 px-3 pb-3">
+                            <div class="col-md-4">
+                                <input type="number" class="form-control" id="paymentAmount" placeholder="Amount" min="1">
+                            </div>
+                            <div class="col-md-4">
+                                <select class="form-select" id="paymentMethod">
+                                    <option value="UPI">UPI</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Cash">Cash</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-primary w-100" id="payNowBtn" type="button">Pay Now</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="student-section">
+                        <h2>Payment History</h2>
+                        <div class="table-responsive px-3 pb-3">
+                            <table class="table align-middle custom-table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="paymentHistory"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="tab-pane fade" id="attendanceTab" role="tabpanel" aria-labelledby="attendance-tab">
                     <div class="student-section">
                         <h2>My Attendance</h2>
@@ -158,34 +207,6 @@
                                 </thead>
                                 <tbody id="studentAttendanceHistory"></tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="examTab" role="tabpanel" aria-labelledby="exam-tab">
-                    <div class="student-section">
-                        <h2>Exam</h2>
-                        <div class="student-info-grid">
-                            <span>Current Semester</span>
-                            <strong>Semester 6</strong>
-                            <span>Last Result</span>
-                            <strong>Passed</strong>
-                            <span>Attendance Eligibility</span>
-                            <strong>Eligible</strong>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="tab-pane fade" id="documentsTab" role="tabpanel" aria-labelledby="documents-tab">
-                    <div class="student-section">
-                        <h2>Documents</h2>
-                        <div class="student-info-grid">
-                            <span>Aadhaar Card</span>
-                            <strong>Submitted</strong>
-                            <span>Marksheet</span>
-                            <strong>Submitted</strong>
-                            <span>Transfer Certificate</span>
-                            <strong>Pending</strong>
                         </div>
                     </div>
                 </div>
@@ -228,8 +249,8 @@
             address: "Kamta, Lucknow",
         };
 
-        const studentPayments = payments.filter((payment) => payment.student === student.name);
-        const paidAmount = studentPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 20000;
+        let studentPayments = payments.filter((payment) => payment.student === student.name);
+        let paidAmount = studentPayments.reduce((sum, payment) => sum + Number(payment.amount || 0), 0) || 20000;
         const totalAmount = 50000;
 
         document.getElementById("studentName").textContent = student.name || "Student Name";
@@ -243,10 +264,42 @@
         document.getElementById("totalFees").textContent = formatCurrency(totalAmount);
         document.getElementById("paidFees").textContent = formatCurrency(paidAmount);
         document.getElementById("pendingFees").textContent = formatCurrency(Math.max(totalAmount - paidAmount, 0));
+        updatePaymentSummary();
+        renderPaymentHistory();
         renderStudentAttendance();
 
         document.getElementById("studentLogoutBtn").addEventListener("click", () => {
             window.location.href = "index.html";
+        });
+
+        document.getElementById("payNowBtn").addEventListener("click", () => {
+            const amount = Number(document.getElementById("paymentAmount").value);
+            const method = document.getElementById("paymentMethod").value;
+
+            if (!amount || amount <= 0) {
+                alert("Please enter a valid amount");
+                return;
+            }
+
+            const payment = {
+                student: student.name,
+                course: student.course,
+                amount,
+                method,
+                date: new Date().toISOString().slice(0, 10),
+                status: "Success"
+            };
+
+            payments.push(payment);
+            localStorage.setItem("erp_payments", JSON.stringify(payments));
+            studentPayments = payments.filter((item) => item.student === student.name);
+            paidAmount = studentPayments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+            document.getElementById("paymentAmount").value = "";
+            document.getElementById("paidFees").textContent = formatCurrency(paidAmount);
+            document.getElementById("pendingFees").textContent = formatCurrency(Math.max(totalAmount - paidAmount, 0));
+            updatePaymentSummary();
+            renderPaymentHistory();
+            alert("Payment Successful");
         });
 
         function formatDate(value) {
@@ -258,6 +311,37 @@
 
         function formatCurrency(value) {
             return `Rs. ${Number(value).toLocaleString("en-IN")}`;
+        }
+
+        function updatePaymentSummary() {
+            document.getElementById("paymentTotalFees").textContent = formatCurrency(totalAmount);
+            document.getElementById("paymentPaidAmount").textContent = formatCurrency(paidAmount);
+            document.getElementById("paymentPendingAmount").textContent = formatCurrency(Math.max(totalAmount - paidAmount, 0));
+        }
+
+        function renderPaymentHistory() {
+            document.getElementById("paymentHistory").innerHTML = studentPayments.length
+                ? studentPayments
+                    .slice()
+                    .sort((paymentA, paymentB) => new Date(paymentB.date) - new Date(paymentA.date))
+                    .map((payment) => `
+                        <tr>
+                            <td>${formatDate(payment.date)}</td>
+                            <td>${formatCurrency(payment.amount)}</td>
+                            <td>${payment.method}</td>
+                            <td>${statusBadge(payment.status || "Success")}</td>
+                        </tr>
+                    `).join("")
+                : `
+                    <tr>
+                        <td colspan="4">
+                            <div class="empty-state">
+                                <i class="bi bi-credit-card"></i>
+                                No payment history available.
+                            </div>
+                        </td>
+                    </tr>
+                `;
         }
 
         function renderStudentAttendance() {

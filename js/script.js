@@ -1,3 +1,5 @@
+let allStudents = [];
+
 const ERP_STORAGE_KEYS = {
     students: "erp_students",
     courses: "erp_courses",
@@ -1025,3 +1027,186 @@ function emptyTableRow(message, colSpan = 5) {
         </tr>
     `;
 }
+
+async function loadStudentsFromAPI() {
+    const loading = document.getElementById("loadingText");
+    if (loading) loading.style.display = "block";
+    
+    const res = await fetch("http://localhost:5000/api/students");
+    const data = await res.json();
+
+    if (loading) loading.style.display = "none";
+
+    console.log("API DATA:", data);
+
+    const table = document.getElementById("studentsTableBody");
+
+    if (!table) {
+        console.log("❌ Table not found");
+        return;
+    }
+
+    table.innerHTML = "";
+
+    data.forEach((student) => {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+    <td>${student.name}</td>
+    <td>${student.email}</td>
+    <td>${student.course}</td>
+    <td>${student.status}</td>
+    <td class="text-end">
+        <button onclick="editStudent('${student._id}')" class="btn btn-sm btn-warning">Edit</button>
+        <button onclick="deleteStudent('${student._id}')" class="btn btn-sm btn-danger">Delete</button>
+    </td>
+`;
+        table.appendChild(row);
+    });
+}
+
+// loadStudentsFromAPI();
+
+// Handle form submission for creating/updating student
+const form = document.getElementById("studentForm");
+
+if (form) {
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById("studentId").value;
+
+        const student = {
+            name: document.getElementById("studentName").value,
+            email: document.getElementById("studentEmail").value,
+            phone: document.getElementById("studentPhone").value,
+            course: document.getElementById("studentCourse").value,
+            status: document.getElementById("studentStatus").value,
+            joinDate: document.getElementById("studentJoinDate").value
+        };
+
+        if (id) {
+            await fetch(`http://localhost:5000/api/students/${id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(student)
+            });
+        } else {
+            await fetch("http://localhost:5000/api/students", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(student)
+            });
+        }
+
+        form.reset();
+        document.getElementById("studentId").value = "";
+
+        loadStudentsFromAPI();
+    });
+}
+
+//delete student by id
+async function deleteStudent(id) {
+    if (!confirm("Delete this student permanently?")) return;
+
+    await fetch(`http://localhost:5000/api/students/${id}`, {
+        method: "DELETE"
+    });
+
+    loadStudentsFromAPI(); // reload table
+}
+
+// edit student - fill form with existing data and open modal
+async function editStudent(id) {
+    const res = await fetch(`http://localhost:5000/api/students`);
+    const data = await res.json();
+
+    const student = data.find(s => s._id === id);
+
+    // fill form
+    document.getElementById("studentId").value = student._id;
+    document.getElementById("studentName").value = student.name;
+    document.getElementById("studentEmail").value = student.email;
+    document.getElementById("studentPhone").value = student.phone;
+    document.getElementById("studentCourse").value = student.course;
+    document.getElementById("studentStatus").value = student.status;
+    document.getElementById("studentJoinDate").value = student.joinDate;
+
+    // open modal
+    const modal = new bootstrap.Modal(document.getElementById("studentModal"));
+    modal.show();
+}
+
+// Render students in table
+function renderStudents(data) {
+    const table = document.getElementById("studentsTableBody");
+
+    if (!table) return;
+
+    table.innerHTML = "";
+
+    data.forEach((student) => {
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+            <td>${student.name}</td>
+            <td>${student.email}</td>
+            <td>${student.course}</td>
+            <td>${student.status}</td>
+            <td class="text-end">
+                <button onclick="editStudent('${student._id}')">Edit</button>
+                <button onclick="deleteStudent('${student._id}')">Delete</button>
+            </td>
+        `;
+
+        table.appendChild(row);
+    });
+}
+
+// Search functionality
+const searchInput = document.getElementById("studentSearch");
+
+if (searchInput) {
+    searchInput.addEventListener("input", () => {
+        const value = searchInput.value.toLowerCase();
+
+        const filtered = allStudents.filter((student) =>
+            student.name.toLowerCase().includes(value) ||
+            student.course.toLowerCase().includes(value)
+        );
+
+        renderStudents(filtered);
+    });
+}
+
+// Load dashboard stats
+async function loadDashboardStats() {
+    const res = await fetch("http://localhost:5000/api/students");
+    const data = await res.json();
+
+    allStudents = data;
+
+    const total = data.length;
+    const active = data.filter(s => s.status === "Active").length;
+    const pending = data.filter(s => s.status === "Pending").length;
+    const completed = data.filter(s => s.status === "Completed").length;
+
+    document.getElementById("totalStudents").innerText = total;
+    document.getElementById("activeStudents").innerText = active;
+    document.getElementById("pendingStudents").innerText = pending;
+    document.getElementById("completedStudents").innerText = completed;
+}
+
+
+// Initial page load actions
+const page = document.body.dataset.page;
+
+if (page === "students") {
+    loadStudentsFromAPI();
+}
+
+if (page === "dashboard") {
+    loadDashboardStats();
+}
+

@@ -20,7 +20,7 @@
                     <div>
                         <span class="section-kicker">Student Management</span>
                         <h1 class="page-title">Manage Students</h1>
-                        <p class="text-secondary mb-0">Create, update, and remove student records with localStorage-backed CRUD.</p>
+                        <!-- <p class="text-secondary mb-0">Create, update, and remove student records with localStorage-backed CRUD.</p> -->
                     </div>
                     <button class="btn btn-primary primary-action" data-bs-toggle="modal" data-bs-target="#studentModal">
                         <i class="bi bi-person-plus me-2"></i>Add Student
@@ -34,6 +34,7 @@
                             <input type="search" class="form-control" id="studentSearch" placeholder="Search students by name or course">
                         </div>
                     </div>
+                    <div id="loadingText">Loading...</div>
                     <div class="table-responsive">
                         <table class="table align-middle custom-table">
                             <thead>
