@@ -79,8 +79,29 @@
 
     <!-- JS -->
     <script>
+        if (!hasActiveSession()) {
+            redirectToLogin();
+        }
+
+        window.addEventListener("pageshow", () => {
+            if (!hasActiveSession()) {
+                redirectToLogin();
+            }
+        });
+
         function logout() {
-            window.location.href = "index.html";
+            localStorage.removeItem("erp_token");
+            localStorage.removeItem("erp_session");
+            redirectToLogin();
+        }
+
+        function hasActiveSession() {
+            const session = JSON.parse(localStorage.getItem("erp_session") || "{}");
+            return Boolean(localStorage.getItem("erp_token") && Object.keys(session).length);
+        }
+
+        function redirectToLogin() {
+            window.location.replace("index.html");
         }
 
         function showSection(sectionId) {

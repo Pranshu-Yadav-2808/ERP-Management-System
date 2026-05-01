@@ -1,136 +1,34 @@
+const API_BASE_URL = "http://localhost:5000/api";
+
 let allStudents = [];
+let allCourses = [];
+let allPayments = [];
+let attendanceDraft = {};
+let dashboardChartInstance = null;
 
-const ERP_STORAGE_KEYS = {
-    students: "erp_students",
-    courses: "erp_courses",
-    payments: "erp_payments",
-    attendance: "erp_attendance",
-    profile: "erp_profile",
-    session: "erp_session"
-};
-
-function createId() {
-    return `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
-}
-
-const defaultCourses = [
-    {
-        id: createId(),
-        name: "Full Stack Development",
-        duration: "6 Months",
-        fee: 18000,
-        description: "HTML, CSS, JavaScript, Bootstrap, PHP, MySQL, and deployment basics."
-    },
-    {
-        id: createId(),
-        name: "Python Programming",
-        duration: "4 Months",
-        fee: 14000,
-        description: "Core Python, automation, APIs, and project-based learning."
-    },
-    {
-        id: createId(),
-        name: "UI/UX Design",
-        duration: "3 Months",
-        fee: 12000,
-        description: "Wireframes, Figma workflow, prototypes, and product design fundamentals."
-    }
-];
-
-const defaultStudents = [
-    {
-        id: createId(),
-        name: "Aarav Sharma",
-        email: "aarav.sharma@example.com",
-        password: "123456",
-        phone: "9876543210",
-        course: "Full Stack Development",
-        status: "Active",
-        joinDate: "2026-03-10"
-    },
-    {
-        id: createId(),
-        name: "Anuu Verma",
-        email: "priya.verma@example.com",
-        password: "123456",
-        phone: "9876501234",
-        course: "Python Programming",
-        status: "Pending",
-        joinDate: "2026-03-18"
-    },
-    {
-        id: createId(),
-        name: "Rohan Mehta",
-        email: "rohan.mehta@example.com",
-        password: "123456",
-        phone: "9811102233",
-        course: "UI/UX Design",
-        status: "Completed",
-        joinDate: "2026-02-01"
-    }
-];
-
-const defaultPayments = [
-    {
-        id: createId(),
-        student: "Aarav Sharma",
-        course: "Full Stack Development",
-        amount: 9000,
-        method: "UPI",
-        date: "2026-04-05",
-        status: "Paid"
-    },
-    {
-        id: createId(),
-        student: "Priya Verma",
-        course: "Python Programming",
-        amount: 5000,
-        method: "Card",
-        date: "2026-04-07",
-        status: "Partial"
-    }
-];
-
-const defaultProfile = {
-    name: "Nisha Kapoor",
-    role: "ERP Administrator",
-    email: "admin@erp.com",
-    phone: "+91 98765 00000",
-    institute: "NextGen IT Training Institute",
-    location: "Bangalore, India",
-    bio: "Oversees admissions, fee operations, and reporting workflows for the training institute ERP."
-};
+const publicPages = new Set(["login", "registration"]);
 
 const demoAccounts = {
     admin: {
         email: "admin@erp.com",
         password: "123456",
-        name: "Pranshu Kapoor",
-        role: "Administrator",
-        redirect: "dashboard.html"
+        role: "admin"
     },
-    student: {
-        email: "priya.verma@example.com",
-        password: "123456",
-        name: "Anuu Verma",
-        role: "Student",
-        redirect: "student-dashboard.html"
-    }
 };
 
-let attendanceDraft = {};
-
-document.addEventListener("DOMContentLoaded", () => {
-    seedInitialData();
-
+document.addEventListener("DOMContentLoaded", async () => {
     const page = document.body.dataset.page;
-    if (!page) return;
 
-    if (page !== "login" && page !== "registration") {
+    if (isProtectedPage(page) && !hasActiveSession()) {
+        redirectToLogin();
+        return;
+    }
+
+    if (page && page !== "login" && page !== "registration") {
         renderShell();
     }
 
-    const pageInitializers = {
+    const pages = {
         login: initLoginPage,
         registration: initRegistrationPage,
         dashboard: initDashboardPage,
@@ -141,88 +39,62 @@ document.addEventListener("DOMContentLoaded", () => {
         profile: initProfilePage
     };
 
-    if (pageInitializers[page]) {
-        pageInitializers[page]();
+    if (pages[page]) {
+        await pages[page]();
     }
 });
 
-function seedInitialData() {
-    seedIfEmpty(ERP_STORAGE_KEYS.courses, defaultCourses);
-    seedIfEmpty(ERP_STORAGE_KEYS.students, defaultStudents);
-    seedIfEmpty(ERP_STORAGE_KEYS.payments, defaultPayments);
-    seedIfEmpty(ERP_STORAGE_KEYS.attendance, {});
-    seedIfEmpty(ERP_STORAGE_KEYS.profile, defaultProfile);
-    seedIfEmpty(ERP_STORAGE_KEYS.session, defaultProfileToSession());
-}
-
-function seedIfEmpty(key, value) {
-    if (!localStorage.getItem(key)) {
-        localStorage.setItem(key, JSON.stringify(value));
+window.addEventListener("pageshow", () => {
+    if (isProtectedPage(document.body.dataset.page) && !hasActiveSession()) {
+        redirectToLogin();
     }
-}
+});
 
-function getData(key) {
-    return JSON.parse(localStorage.getItem(key));
-}
+async function apiRequest(path, options = {}) {
+    const token = localStorage.getItem("erp_token");
 
-function setData(key, value) {
-    localStorage.setItem(key, JSON.stringify(value));
-}
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(options.headers || {})
+        }
+    });
 
-function getStudents() {
-    return getData(ERP_STORAGE_KEYS.students) || [];
-}
+    const data = await response.json().catch(() => ({}));
 
-function saveStudents(students) {
-    setData(ERP_STORAGE_KEYS.students, students);
-}
+    if (!response.ok) {
+        throw new Error(data.message || "API request failed");
+    }
 
-function getCourses() {
-    return getData(ERP_STORAGE_KEYS.courses) || [];
-}
-
-function saveCourses(courses) {
-    setData(ERP_STORAGE_KEYS.courses, courses);
-}
-
-function getPayments() {
-    return getData(ERP_STORAGE_KEYS.payments) || [];
-}
-
-function savePayments(payments) {
-    setData(ERP_STORAGE_KEYS.payments, payments);
-}
-
-function getAttendance() {
-    return getData(ERP_STORAGE_KEYS.attendance) || {};
-}
-
-function saveAttendance(attendance) {
-    setData(ERP_STORAGE_KEYS.attendance, attendance);
-}
-
-function getProfile() {
-    return getData(ERP_STORAGE_KEYS.profile) || {};
-}
-
-function saveProfile(profile) {
-    setData(ERP_STORAGE_KEYS.profile, profile);
+    return data;
 }
 
 function getSession() {
-    return getData(ERP_STORAGE_KEYS.session) || {};
+    return JSON.parse(localStorage.getItem("erp_session") || "{}");
 }
 
 function saveSession(session) {
-    setData(ERP_STORAGE_KEYS.session, session);
+    localStorage.setItem("erp_session", JSON.stringify(session));
 }
 
-function defaultProfileToSession() {
-    return {
-        name: defaultProfile.name,
-        role: "Administrator",
-        email: defaultProfile.email
-    };
+function hasActiveSession() {
+    return Boolean(localStorage.getItem("erp_token") && Object.keys(getSession()).length);
+}
+
+function isProtectedPage(page) {
+    return Boolean(page && !publicPages.has(page));
+}
+
+function redirectToLogin() {
+    window.location.replace("index.html");
+}
+
+function logout() {
+    localStorage.removeItem("erp_token");
+    localStorage.removeItem("erp_session");
+    redirectToLogin();
 }
 
 function renderShell() {
@@ -235,6 +107,7 @@ function renderSidebar() {
     if (!sidebarHost) return;
 
     const currentPage = document.body.dataset.page;
+
     const navItems = [
         { href: "dashboard.html", key: "dashboard", label: "Dashboard", icon: "bi-grid-1x2-fill" },
         { href: "students.html", key: "students", label: "Students", icon: "bi-people-fill" },
@@ -262,19 +135,14 @@ function renderSidebar() {
                     </a>
                 `).join("")}
             </nav>
-            <div class="sidebar-footer">
-                <strong>Frontend Demo</strong>
-                <p class="small mb-0 mt-1 text-white-50">Data persists in your browser using localStorage only.</p>
-            </div>
+            
         </div>
     `;
 
-    const logoutLink = document.getElementById("logoutLink");
-    if (logoutLink) {
-        logoutLink.addEventListener("click", () => {
-            saveSession(defaultProfileToSession());
-        });
-    }
+    document.getElementById("logoutLink")?.addEventListener("click", (event) => {
+        event.preventDefault();
+        logout();
+    });
 }
 
 function renderNavbar() {
@@ -283,6 +151,7 @@ function renderNavbar() {
 
     const session = getSession();
     const title = document.body.dataset.pageTitle || "ERP";
+
     navbarHost.innerHTML = `
         <div class="topbar">
             <div class="topbar-inner">
@@ -291,7 +160,7 @@ function renderNavbar() {
                     <p>Manage your institute workflow efficiently.</p>
                 </div>
                 <div class="topbar-user">
-                    <img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=200&q=80" alt="Admin">
+                    <img src="./assets/images/photo.jpg" alt="Admin">
                     <div>
                         <strong>${session.name || "Admin User"}</strong>
                         <p>${session.role || "Administrator"}</p>
@@ -302,7 +171,7 @@ function renderNavbar() {
     `;
 }
 
-function initLoginPage() {
+async function initLoginPage() {
     const loginForm = document.getElementById("loginForm");
     const fillAdminDemoBtn = document.getElementById("fillAdminDemoBtn");
     const fillStudentDemoBtn = document.getElementById("fillStudentDemoBtn");
@@ -311,160 +180,151 @@ function initLoginPage() {
     const roleField = document.getElementById("userRole");
     const message = document.getElementById("loginMessage");
 
-    fillAdminDemoBtn.addEventListener("click", () => {
+    fillAdminDemoBtn?.addEventListener("click", () => {
         emailField.value = demoAccounts.admin.email;
         passwordField.value = demoAccounts.admin.password;
         roleField.value = "admin";
         message.classList.add("d-none");
     });
 
-    fillStudentDemoBtn.addEventListener("click", () => {
+    fillStudentDemoBtn?.addEventListener("click", () => {
         emailField.value = demoAccounts.student.email;
         passwordField.value = demoAccounts.student.password;
         roleField.value = "student";
         message.classList.add("d-none");
     });
 
-    loginForm.addEventListener("submit", (event) => {
+    loginForm?.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        const role = roleField.value;
-        const email = emailField.value.trim().toLowerCase();
-        const password = passwordField.value.trim();
+        try {
+            const role = roleField.value;
+            const email = emailField.value.trim().toLowerCase();
+            const password = passwordField.value.trim();
 
-        if (role === "admin") {
-            if (email !== demoAccounts.admin.email || password !== demoAccounts.admin.password) {
-                showLoginError("Invalid admin email or password.");
-                return;
-            }
-
-            saveSession({
-                name: demoAccounts.admin.name,
-                role: demoAccounts.admin.role,
-                email: demoAccounts.admin.email
+            const data = await apiRequest("/auth/login", {
+                method: "POST",
+                body: JSON.stringify({ email, password, role })
             });
 
-            window.location.href = demoAccounts.admin.redirect;
-            return;
+            localStorage.setItem("erp_token", data.token);
+            saveSession(data.user);
+
+            window.location.replace(role === "student" ? "student-dashboard.html" : "dashboard.html");
+        } catch (error) {
+            message.textContent = error.message || "Login failed. Run backend seed first.";
+            message.classList.remove("d-none");
         }
-
-        const savedStudent = getStudents().find((item) => {
-            const studentEmail = (item.email || "").toLowerCase();
-            const studentPassword = item.password || "123456";
-            return studentEmail === email && studentPassword === password;
-        });
-        const demoStudent = email === demoAccounts.student.email && password === demoAccounts.student.password
-            ? demoAccounts.student
-            : null;
-        const student = savedStudent || demoStudent;
-
-        if (!student) {
-            showLoginError("Invalid student email or password. Try priya.verma@example.com / 123456.");
-            return;
-        }
-
-        saveSession({
-            name: student.name,
-            role: "Student",
-            email: student.email
-        });
-
-        window.location.href = "student-dashboard.html";
     });
-
-    function showLoginError(text) {
-        message.textContent = text;
-        message.classList.remove("d-none");
-    }
 }
 
-function initRegistrationPage() {
-    populateCourseSelect(document.getElementById("regCourse"));
+async function initRegistrationPage() {
+    await populateCourseSelect(document.getElementById("regCourse"));
 
     const form = document.getElementById("registrationForm");
     const message = document.getElementById("registrationMessage");
 
-    form.addEventListener("submit", (event) => {
+    form?.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        const student = {
-            id: createId(),
-            name: document.getElementById("regName").value.trim(),
-            email: document.getElementById("regEmail").value.trim(),
-            password: document.getElementById("regPassword").value.trim(),
-            phone: document.getElementById("regPhone").value.trim(),
-            course: document.getElementById("regCourse").value,
-            status: document.getElementById("regStatus").value,
-            joinDate: document.getElementById("regJoinDate").value,
-            duration: document.getElementById("regDuration").value.trim(),
-            address: document.getElementById("regAddress").value.trim()
-        };
+        try {
+            const student = {
+                name: document.getElementById("regName").value.trim(),
+                email: document.getElementById("regEmail").value.trim(),
+                password: document.getElementById("regPassword").value.trim(),
+                phone: document.getElementById("regPhone").value.trim(),
+                course: document.getElementById("regCourse").value,
+                status: document.getElementById("regStatus").value,
+                joinDate: document.getElementById("regJoinDate").value,
+                duration: document.getElementById("regDuration").value.trim(),
+                address: document.getElementById("regAddress").value.trim()
+            };
 
-        const students = getStudents();
-        students.unshift(student);
-        saveStudents(students);
-        form.reset();
+            await apiRequest("/students", {
+                method: "POST",
+                body: JSON.stringify(student)
+            });
 
-        message.className = "mb-0 text-center fw-semibold text-success";
-        message.textContent = "Student registered successfully. The record is now available in Students.";
-        populateCourseSelect(document.getElementById("regCourse"));
+            form.reset();
+            await populateCourseSelect(document.getElementById("regCourse"));
+            message.className = "mb-0 text-center fw-semibold text-success";
+            message.textContent = "Student registered successfully.";
+        } catch (error) {
+            message.className = "mb-0 text-center fw-semibold text-danger";
+            message.textContent = error.message;
+        }
     });
 }
 
-function initDashboardPage() {
-    const students = getStudents();
-    const courses = getCourses();
-    const payments = getPayments();
-    const totalFees = payments.reduce((sum, item) => sum + Number(item.amount), 0);
+async function initDashboardPage() {
+    const session = getSession();
+    const role = String(session.role || "").toLowerCase();
 
-    document.getElementById("totalStudentsCount").textContent = students.length;
-    document.getElementById("totalCoursesCount").textContent = courses.length;
-    document.getElementById("feesCollectedCount").textContent = formatCurrency(totalFees);
+    if (role === "student") {
+        window.location.href = "student-dashboard.html";
+        return;
+    }
 
-    renderDashboardInsights(students, courses, payments);
-    renderDashboardChart(students, payments);
+    await refreshDashboardStats();
 }
 
-function renderDashboardInsights(students, courses, payments) {
-    const activeStudents = students.filter((student) => student.status === "Active").length;
-    const pendingStudents = students.filter((student) => student.status === "Pending").length;
-    const recentPayments = payments.slice(0, 3);
+async function refreshDashboardStats() {
+    const stats = await apiRequest("/dashboard");
+
+    setText("totalStudentsCount", stats.totalStudents);
+    setText("totalCoursesCount", stats.totalCourses);
+    setText("feesCollectedCount", formatCurrency(stats.feesCollected));
+
+    setText("totalStudents", stats.totalStudents);
+    setText("activeStudents", stats.activeStudents);
+    setText("pendingStudents", stats.pendingStudents);
+    setText("completedStudents", stats.completedStudents);
 
     document.getElementById("dashboardInsights").innerHTML = `
         <div class="insight-item">
-            <h3>${activeStudents}</h3>
+            <h3>${stats.activeStudents}</h3>
             <p>Students currently marked active.</p>
         </div>
         <div class="insight-item">
-            <h3>${pendingStudents}</h3>
-            <p>Admissions still in pending stage.</p>
+            <h3>${stats.pendingStudents}</h3>
+            <p>Admissions still pending.</p>
         </div>
         <div class="insight-item">
-            <h3>${courses[0]?.name || "No Courses"}</h3>
-            <p>Featured program with frontend visibility.</p>
+            <h3>${stats.featuredCourse?.name || "No Courses"}</h3>
+            <p>Featured program.</p>
         </div>
         <div class="insight-item">
-            <h3>${recentPayments.length}</h3>
-            <p>Recent fee entries available in payment history.</p>
+            <h3>${stats.recentPayments?.length || 0}</h3>
+            <p>Recent fee entries.</p>
         </div>
     `;
+
+    renderDashboardChart(stats);
 }
 
-function renderDashboardChart(students, payments) {
+function renderDashboardChart(stats) {
     const chartCanvas = document.getElementById("dashboardChart");
     if (!chartCanvas || typeof Chart === "undefined") return;
 
-    const paymentTotal = payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
-    const admissionBase = students.length || 1;
+    if (dashboardChartInstance) {
+        dashboardChartInstance.destroy();
+    }
 
-    new Chart(chartCanvas, {
+    dashboardChartInstance = new Chart(chartCanvas, {
         type: "line",
         data: {
             labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun"],
             datasets: [
                 {
                     label: "Admissions",
-                    data: [Math.max(admissionBase - 2, 1), admissionBase - 1, admissionBase, admissionBase + 1, admissionBase + 2, admissionBase + 3],
+                    data: [
+                        Math.max(stats.totalStudents - 2, 0),
+                        Math.max(stats.totalStudents - 1, 0),
+                        stats.totalStudents,
+                        stats.totalStudents + 1,
+                        stats.totalStudents + 2,
+                        stats.totalStudents + 3
+                    ],
                     borderColor: "#4f7cff",
                     backgroundColor: "rgba(79, 124, 255, 0.15)",
                     fill: true,
@@ -473,12 +333,12 @@ function renderDashboardChart(students, payments) {
                 {
                     label: "Revenue",
                     data: [
-                        Math.round(paymentTotal * 0.35) || 4000,
-                        Math.round(paymentTotal * 0.45) || 6000,
-                        Math.round(paymentTotal * 0.55) || 9000,
-                        Math.round(paymentTotal * 0.75) || 11000,
-                        Math.round(paymentTotal * 0.95) || 13000,
-                        paymentTotal || 15000
+                        Math.round(stats.feesCollected * 0.35) || 4000,
+                        Math.round(stats.feesCollected * 0.45) || 6000,
+                        Math.round(stats.feesCollected * 0.55) || 9000,
+                        Math.round(stats.feesCollected * 0.75) || 11000,
+                        Math.round(stats.feesCollected * 0.95) || 13000,
+                        stats.feesCollected || 15000
                     ],
                     borderColor: "#17b26a",
                     backgroundColor: "rgba(23, 178, 106, 0.1)",
@@ -488,98 +348,169 @@ function renderDashboardChart(students, payments) {
             ]
         },
         options: {
-            plugins: {
-                legend: {
-                    position: "top"
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true
-                }
-            }
+            plugins: { legend: { position: "top" } },
+            scales: { y: { beginAtZero: true } }
         }
     });
 }
 
-function initStudentsPage() {
+async function initStudentsPage() {
     const form = document.getElementById("studentForm");
     const modalElement = document.getElementById("studentModal");
-    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+    const modal = modalElement ? bootstrap.Modal.getOrCreateInstance(modalElement) : null;
     const searchInput = document.getElementById("studentSearch");
+    const joinDateInput = document.getElementById("studentJoinDate");
+    const passwordInput = document.getElementById("studentPassword");
 
-    populateCourseSelect(document.getElementById("studentCourse"));
-    renderStudentsTable();
+    await populateCourseSelect(document.getElementById("studentCourse"));
+    resetStudentForm();
+    await loadStudentsFromAPI();
 
-    form.addEventListener("submit", (event) => {
+    form?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        const id = document.getElementById("studentId").value;
-        const students = getStudents();
-        const studentRecord = {
-            id: id || createId(),
-            name: document.getElementById("studentName").value.trim(),
-            email: document.getElementById("studentEmail").value.trim(),
-            course: document.getElementById("studentCourse").value,
-            status: document.getElementById("studentStatus").value,
-            phone: document.getElementById("studentPhone").value.trim(),
-            joinDate: document.getElementById("studentJoinDate").value
-        };
 
-        const existingIndex = students.findIndex((student) => student.id === studentRecord.id);
-        if (existingIndex >= 0) {
-            students[existingIndex] = studentRecord;
-        } else {
-            students.unshift(studentRecord);
+        const id = document.getElementById("studentId").value;
+        const phone = document.getElementById("studentPhone").value.trim();
+        if (!/^\d{10}$/.test(phone)) {
+            showToast("Enter a valid 10 digit phone number", "error");
+            return;
         }
 
-        saveStudents(students);
+        const student = {
+            name: document.getElementById("studentName").value.trim(),
+            email: document.getElementById("studentEmail").value.trim(),
+            password: document.getElementById("studentPassword").value.trim(),
+            phone,
+            fatherName: document.getElementById("studentFatherName").value.trim(),
+            motherName: document.getElementById("studentMotherName").value.trim(),
+            dateOfBirth: document.getElementById("studentDob").value,
+            category: document.getElementById("studentCategory").value,
+            course: document.getElementById("studentCourse").value,
+            duration: document.getElementById("studentDuration").value,
+            status: document.getElementById("studentStatus").value,
+            joinDate: document.getElementById("studentJoinDate").value,
+            address: document.getElementById("studentAddress").value.trim()
+        };
+
+        let savedStudent;
+        if (id) {
+            savedStudent = await apiRequest(`/students/${id}`, {
+                method: "PUT",
+                body: JSON.stringify(student)
+            });
+        } else {
+            savedStudent = await apiRequest("/students", {
+                method: "POST",
+                body: JSON.stringify(student)
+            });
+        }
+
+        saveStudentExtraDetails(savedStudent?._id || id, savedStudent?.email || student.email, student);
+
         form.reset();
         document.getElementById("studentId").value = "";
-        document.getElementById("studentModalLabel").textContent = "Add Student";
-        modal.hide();
+        resetStudentForm();
+        modal?.hide();
+        await loadStudentsFromAPI(searchInput?.value || "");
+        showToast("Student saved successfully", "success");
+    });
+
+    searchInput?.addEventListener("input", () => {
         renderStudentsTable(searchInput.value);
     });
 
-    searchInput.addEventListener("input", (event) => {
-        renderStudentsTable(event.target.value);
-    });
-
-    modalElement.addEventListener("hidden.bs.modal", () => {
+    modalElement?.addEventListener("hidden.bs.modal", () => {
         form.reset();
         document.getElementById("studentId").value = "";
-        document.getElementById("studentModalLabel").textContent = "Add Student";
+        resetStudentForm();
     });
+
+    modalElement?.addEventListener("show.bs.modal", () => {
+        if (!document.getElementById("studentId").value) {
+            resetStudentForm();
+        }
+    });
+
+    function resetStudentForm() {
+        document.getElementById("studentModalLabel").textContent = "New Registration";
+        if (joinDateInput && !joinDateInput.value) {
+            joinDateInput.value = new Date().toISOString().split("T")[0];
+        }
+        if (passwordInput && !passwordInput.value) {
+            passwordInput.value = generateStudentPassword();
+        }
+    }
+}
+
+async function loadStudentsFromAPI() {
+    const loading = document.getElementById("loadingText");
+    if (loading) loading.style.display = "block";
+
+    const students = await apiRequest("/students");
+    allStudents = students.map(mergeStudentExtraDetails);
+
+    if (loading) loading.style.display = "none";
+    renderStudentsTable(document.getElementById("studentSearch")?.value || "");
 }
 
 function renderStudentsTable(query = "") {
-    const students = getStudents();
     const tbody = document.getElementById("studentsTableBody");
+    if (!tbody) return;
+
     const normalizedQuery = query.trim().toLowerCase();
-    const filteredStudents = students.filter((student) => {
-        const haystack = `${student.name} ${student.email} ${student.course}`.toLowerCase();
+
+    const students = allStudents.filter((student) => {
+        const haystack = [
+            student.name,
+            student.email,
+            student.phone,
+            student.fatherName,
+            student.motherName,
+            student.category,
+            student.course,
+            student.duration,
+            student.address,
+            student.status
+        ].join(" ").toLowerCase();
         return haystack.includes(normalizedQuery);
     });
 
-    if (!filteredStudents.length) {
-        tbody.innerHTML = emptyTableRow("No student records found.");
+    if (!students.length) {
+        tbody.innerHTML = emptyTableRow("No student records found.", 7);
         return;
     }
 
-    tbody.innerHTML = filteredStudents.map((student) => `
+    tbody.innerHTML = students.map((student) => `
         <tr>
             <td>
-                <div class="fw-semibold">${student.name}</div>
-                <div class="small text-secondary">${student.phone || "No phone"}</div>
+                <div class="fw-semibold">${escapeHtml(student.name || "-")}</div>
+                <div class="small text-secondary">${escapeHtml(student.email || "-")}</div>
+                <div class="small text-secondary">${escapeHtml(student.phone || "-")}</div>
+                <div class="small text-secondary">Password: ${escapeHtml(student.loginPassword || "Not available")}</div>
             </td>
-            <td>${student.email}</td>
-            <td>${student.course}</td>
+            <td>
+                <div class="small">Father: ${escapeHtml(student.fatherName || student.guardianName || "-")}</div>
+                <div class="small text-secondary">Mother: ${escapeHtml(student.motherName || "-")}</div>
+            </td>
+            <td>
+                <div>${formatDate(student.dateOfBirth)}</div>
+                <div class="small text-secondary">${escapeHtml(student.category || "-")}</div>
+            </td>
+            <td>
+                <div>${escapeHtml(student.course || "-")}</div>
+                <div class="small text-secondary">${escapeHtml(student.duration || "-")}</div>
+                <div class="small text-secondary">Joined: ${formatDate(student.joinDate)}</div>
+            </td>
+            <td>
+                <div class="small">${escapeHtml(student.address || "-")}</div>
+            </td>
             <td>${statusBadge(student.status)}</td>
             <td class="text-end">
                 <div class="table-action-group">
-                    <button class="table-action-btn" type="button" onclick="editStudent('${student.id}')">
+                    <button class="table-action-btn" type="button" onclick="editStudent('${student._id}')">
                         <i class="bi bi-pencil-square"></i>
                     </button>
-                    <button class="table-action-btn" type="button" onclick="deleteStudent('${student.id}')">
+                    <button class="table-action-btn" type="button" onclick="deleteStudent('${student._id}')">
                         <i class="bi bi-trash3"></i>
                     </button>
                 </div>
@@ -588,78 +519,101 @@ function renderStudentsTable(query = "") {
     `).join("");
 }
 
-function editStudent(studentId) {
-    const student = getStudents().find((entry) => entry.id === studentId);
-    if (!student) return;
+async function editStudent(studentId) {
+    const student = allStudents.find((entry) => entry._id === studentId) || await apiRequest(`/students/${studentId}`);
 
-    document.getElementById("studentId").value = student.id;
-    document.getElementById("studentName").value = student.name;
-    document.getElementById("studentEmail").value = student.email;
-    document.getElementById("studentCourse").value = student.course;
-    document.getElementById("studentStatus").value = student.status;
+    document.getElementById("studentId").value = student._id;
+    document.getElementById("studentName").value = student.name || "";
+    document.getElementById("studentEmail").value = student.email || "";
+    document.getElementById("studentPassword").value = student.loginPassword || generateStudentPassword();
     document.getElementById("studentPhone").value = student.phone || "";
-    document.getElementById("studentJoinDate").value = student.joinDate || "";
-    document.getElementById("studentModalLabel").textContent = "Edit Student";
+    document.getElementById("studentFatherName").value = student.fatherName || student.guardianName || "";
+    document.getElementById("studentMotherName").value = student.motherName || "";
+    document.getElementById("studentDob").value = toInputDate(student.dateOfBirth);
+    document.getElementById("studentCategory").value = student.category || "General";
+    document.getElementById("studentCourse").value = student.course || "";
+    document.getElementById("studentDuration").value = student.duration || "45 Days";
+    document.getElementById("studentStatus").value = student.status || "Active";
+    document.getElementById("studentJoinDate").value = toInputDate(student.joinDate);
+    document.getElementById("studentAddress").value = student.address || "";
+    document.getElementById("studentModalLabel").textContent = "Edit Registration";
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById("studentModal")).show();
 }
 
-function deleteStudent(studentId) {
-    const students = getStudents().filter((student) => student.id !== studentId);
-    saveStudents(students);
-    renderStudentsTable(document.getElementById("studentSearch").value);
+async function deleteStudent(studentId) {
+    const confirmed = await confirmAction("Delete this student?");
+    if (!confirmed) return;
+
+    await apiRequest(`/students/${studentId}`, { method: "DELETE" });
+    deleteStudentExtraDetails(studentId);
+    await loadStudentsFromAPI();
+    showToast("Student deleted", "success");
 }
 
-function initCoursesPage() {
+window.editStudent = editStudent;
+window.deleteStudent = deleteStudent;
+
+async function initCoursesPage() {
     const form = document.getElementById("courseForm");
     const modalElement = document.getElementById("courseModal");
-    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+    const modal = modalElement ? bootstrap.Modal.getOrCreateInstance(modalElement) : null;
 
-    renderCoursesGrid();
+    await loadCoursesFromAPI();
 
-    form.addEventListener("submit", (event) => {
+    form?.addEventListener("submit", async (event) => {
         event.preventDefault();
+
         const id = document.getElementById("courseId").value;
-        const courses = getCourses();
-        const courseRecord = {
-            id: id || createId(),
+
+        const course = {
             name: document.getElementById("courseName").value.trim(),
             duration: document.getElementById("courseDuration").value.trim(),
             fee: Number(document.getElementById("courseFee").value),
             description: document.getElementById("courseDescription").value.trim()
         };
 
-        const existingIndex = courses.findIndex((course) => course.id === courseRecord.id);
-        if (existingIndex >= 0) {
-            courses[existingIndex] = courseRecord;
+        if (id) {
+            await apiRequest(`/courses/${id}`, {
+                method: "PUT",
+                body: JSON.stringify(course)
+            });
         } else {
-            courses.unshift(courseRecord);
+            await apiRequest("/courses", {
+                method: "POST",
+                body: JSON.stringify(course)
+            });
         }
 
-        saveCourses(courses);
         form.reset();
         document.getElementById("courseId").value = "";
         document.getElementById("courseModalLabel").textContent = "Add Course";
-        modal.hide();
-        renderCoursesGrid();
+        modal?.hide();
+        await loadCoursesFromAPI();
     });
 
-    modalElement.addEventListener("hidden.bs.modal", () => {
+    modalElement?.addEventListener("hidden.bs.modal", () => {
         form.reset();
         document.getElementById("courseId").value = "";
         document.getElementById("courseModalLabel").textContent = "Add Course";
     });
 }
 
-function renderCoursesGrid() {
-    const courses = getCourses();
-    const host = document.getElementById("coursesGrid");
+async function loadCoursesFromAPI() {
+    allCourses = await apiRequest("/courses/stats");
+    renderCoursesGrid();
+}
 
-    if (!courses.length) {
+function renderCoursesGrid() {
+    const host = document.getElementById("coursesGrid");
+    if (!host) return;
+
+    if (!allCourses.length) {
         host.innerHTML = `<div class="col-12"><div class="panel-card empty-state"><i class="bi bi-journal-x"></i>No courses available.</div></div>`;
         return;
     }
 
-    host.innerHTML = courses.map((course) => `
+    host.innerHTML = allCourses.map((course) => `
         <div class="col-md-6 col-xl-4">
             <div class="panel-card course-card">
                 <div class="panel-header">
@@ -671,11 +625,11 @@ function renderCoursesGrid() {
                 <div class="course-price">${formatCurrency(course.fee)}</div>
                 <div class="meta-chip-group">
                     <span class="meta-chip"><i class="bi bi-clock-history"></i>${course.duration}</span>
-                    <span class="meta-chip"><i class="bi bi-collection"></i>${countStudentsByCourse(course.name)} Students</span>
+                    <span class="meta-chip"><i class="bi bi-collection"></i>${course.studentCount || 0} Students</span>
                 </div>
                 <div class="table-action-group justify-content-start">
-                    <button class="table-action-btn" type="button" onclick="editCourse('${course.id}')"><i class="bi bi-pencil-square"></i></button>
-                    <button class="table-action-btn" type="button" onclick="deleteCourse('${course.id}')"><i class="bi bi-trash3"></i></button>
+                    <button class="table-action-btn" type="button" onclick="editCourse('${course._id}')"><i class="bi bi-pencil-square"></i></button>
+                    <button class="table-action-btn" type="button" onclick="deleteCourse('${course._id}')"><i class="bi bi-trash3"></i></button>
                 </div>
             </div>
         </div>
@@ -683,64 +637,85 @@ function renderCoursesGrid() {
 }
 
 function editCourse(courseId) {
-    const course = getCourses().find((entry) => entry.id === courseId);
+    const course = allCourses.find((entry) => entry._id === courseId);
     if (!course) return;
 
-    document.getElementById("courseId").value = course.id;
-    document.getElementById("courseName").value = course.name;
-    document.getElementById("courseDuration").value = course.duration;
-    document.getElementById("courseFee").value = course.fee;
-    document.getElementById("courseDescription").value = course.description;
+    document.getElementById("courseId").value = course._id;
+    document.getElementById("courseName").value = course.name || "";
+    document.getElementById("courseDuration").value = course.duration || "";
+    document.getElementById("courseFee").value = course.fee || 0;
+    document.getElementById("courseDescription").value = course.description || "";
     document.getElementById("courseModalLabel").textContent = "Edit Course";
+
     bootstrap.Modal.getOrCreateInstance(document.getElementById("courseModal")).show();
 }
 
-function deleteCourse(courseId) {
-    const courses = getCourses().filter((course) => course.id !== courseId);
-    saveCourses(courses);
-    renderCoursesGrid();
+async function deleteCourse(courseId) {
+    const confirmed = await confirmAction("Delete this course?");
+    if (!confirmed) return;
+
+    await apiRequest(`/courses/${courseId}`, { method: "DELETE" });
+    await loadCoursesFromAPI();
 }
 
-function initFeesPage() {
-    populateStudentSelect(document.getElementById("paymentStudent"));
-    populateCourseSelect(document.getElementById("paymentCourse"));
+window.editCourse = editCourse;
+window.deleteCourse = deleteCourse;
+
+async function initFeesPage() {
+    await populateStudentSelect(document.getElementById("paymentStudent"));
+    await populateCourseSelect(document.getElementById("paymentCourse"));
 
     const dateInput = document.getElementById("paymentDate");
-    dateInput.value = new Date().toISOString().split("T")[0];
+    if (dateInput) dateInput.value = new Date().toISOString().split("T")[0];
 
-    renderPaymentsTable();
+    document.getElementById("paymentStudent")?.addEventListener("change", () => {
+        const selected = allStudents.find((student) => student.name === document.getElementById("paymentStudent").value);
+        if (selected) document.getElementById("paymentCourse").value = selected.course;
+    });
 
-    document.getElementById("paymentForm").addEventListener("submit", (event) => {
+    await loadPaymentsFromAPI();
+
+    document.getElementById("paymentForm")?.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        const payments = getPayments();
-        payments.unshift({
-            id: createId(),
+        const selectedStudent = allStudents.find((student) => student.name === document.getElementById("paymentStudent").value);
+
+        const payment = {
             student: document.getElementById("paymentStudent").value,
+            studentId: selectedStudent?._id,
             course: document.getElementById("paymentCourse").value,
             amount: Number(document.getElementById("paymentAmount").value),
             method: document.getElementById("paymentMethod").value,
             date: document.getElementById("paymentDate").value,
             status: document.getElementById("paymentStatus").value
+        };
+
+        await apiRequest("/payments", {
+            method: "POST",
+            body: JSON.stringify(payment)
         });
 
-        savePayments(payments);
         event.target.reset();
         dateInput.value = new Date().toISOString().split("T")[0];
-        renderPaymentsTable();
+        await loadPaymentsFromAPI();
     });
 }
 
-function renderPaymentsTable() {
-    const payments = getPayments();
-    const tbody = document.getElementById("paymentsTableBody");
+async function loadPaymentsFromAPI() {
+    allPayments = await apiRequest("/payments");
+    renderPaymentsTable();
+}
 
-    if (!payments.length) {
+function renderPaymentsTable() {
+    const tbody = document.getElementById("paymentsTableBody");
+    if (!tbody) return;
+
+    if (!allPayments.length) {
         tbody.innerHTML = emptyTableRow("No payments have been recorded yet.", 6);
         return;
     }
 
-    tbody.innerHTML = payments.map((payment) => `
+    tbody.innerHTML = allPayments.map((payment) => `
         <tr>
             <td>${payment.student}</td>
             <td>${payment.course}</td>
@@ -752,34 +727,49 @@ function renderPaymentsTable() {
     `).join("");
 }
 
-function initAttendancePage() {
+async function initAttendancePage() {
     const dateInput = document.getElementById("attendanceDate");
     dateInput.value = new Date().toISOString().split("T")[0];
-    loadAttendanceDraft(dateInput.value);
 
+    allStudents = await apiRequest("/students");
+    await loadAttendanceDraft(dateInput.value);
     renderAttendanceTable();
-    renderAttendanceHistory();
+    await renderAttendanceHistory();
 
-    dateInput.addEventListener("change", () => {
-        loadAttendanceDraft(dateInput.value);
+    dateInput.addEventListener("change", async () => {
+        await loadAttendanceDraft(dateInput.value);
         renderAttendanceTable();
     });
 
-    document.getElementById("submitAttendanceBtn").addEventListener("click", submitAttendance);
+    document.getElementById("submitAttendanceBtn")?.addEventListener("click", submitAttendance);
+}
+
+async function loadAttendanceDraft(date) {
+    attendanceDraft = {};
+    hideAttendanceMessage();
+
+    try {
+        const sheet = await apiRequest(`/attendance/${date}`);
+        sheet.records.forEach((record) => {
+            const studentId = record.student?._id || record.student;
+            attendanceDraft[studentId] = record.status;
+        });
+    } catch {
+        attendanceDraft = {};
+    }
 }
 
 function renderAttendanceTable() {
-    const students = getStudents();
     const tbody = document.getElementById("attendanceTableBody");
     const date = document.getElementById("attendanceDate").value;
 
-    if (!students.length) {
+    if (!allStudents.length) {
         tbody.innerHTML = emptyTableRow("No students available for attendance.", 4);
         return;
     }
 
-    tbody.innerHTML = students.map((student) => {
-        const status = attendanceDraft[student.id] || "Pending";
+    tbody.innerHTML = allStudents.map((student) => {
+        const status = attendanceDraft[student._id] || "Pending";
         return `
             <tr>
                 <td>${student.name}</td>
@@ -787,8 +777,8 @@ function renderAttendanceTable() {
                 <td>${statusBadge(status)}</td>
                 <td class="text-end">
                     <div class="attendance-actions">
-                        <button class="btn btn-sm btn-outline-success" onclick="setAttendance('${student.id}', 'Present')">Present</button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="setAttendance('${student.id}', 'Absent')">Absent</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="setAttendance('${student._id}', 'Present')">Present</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="setAttendance('${student._id}', 'Absent')">Absent</button>
                     </div>
                 </td>
             </tr>
@@ -804,31 +794,37 @@ function setAttendance(studentId, status) {
     renderAttendanceTable();
 }
 
-function submitAttendance() {
-    const dateInput = document.getElementById("attendanceDate");
-    const date = dateInput.value;
+window.setAttendance = setAttendance;
+
+async function submitAttendance() {
+    const date = document.getElementById("attendanceDate").value;
     if (!date) return;
 
-    const attendance = getAttendance();
-    attendance[date] = {
-        ...attendanceDraft,
-        _submittedAt: new Date().toISOString()
-    };
-    saveAttendance(attendance);
+    const records = allStudents.map((student) => ({
+        student: student._id,
+        studentName: student.name,
+        course: student.course,
+        status: attendanceDraft[student._id] || "Pending"
+    }));
+
+    await apiRequest("/attendance", {
+        method: "POST",
+        body: JSON.stringify({ date, records })
+    });
+
     showAttendanceMessage(`Saved for ${formatDate(date)}.`);
     renderAttendanceTable();
-    renderAttendanceHistory();
+    await renderAttendanceHistory();
 }
 
 function renderAttendanceSummary(date) {
-    const students = getStudents();
-    const presentCount = students.filter((student) => attendanceDraft[student.id] === "Present").length;
-    const absentCount = students.filter((student) => attendanceDraft[student.id] === "Absent").length;
-    const pendingCount = Math.max(students.length - presentCount - absentCount, 0);
+    const presentCount = allStudents.filter((student) => attendanceDraft[student._id] === "Present").length;
+    const absentCount = allStudents.filter((student) => attendanceDraft[student._id] === "Absent").length;
+    const pendingCount = Math.max(allStudents.length - presentCount - absentCount, 0);
 
     document.getElementById("attendanceSummary").innerHTML = `
         <div class="attendance-summary-card">
-            <h3>${students.length}</h3>
+            <h3>${allStudents.length}</h3>
             <p>Total students for ${formatDate(date)}</p>
         </div>
         <div class="attendance-summary-card">
@@ -846,39 +842,26 @@ function renderAttendanceSummary(date) {
     `;
 }
 
-function loadAttendanceDraft(date) {
-    attendanceDraft = getDailyAttendanceStatuses(getAttendance()[date] || {});
-    hideAttendanceMessage();
-}
-
-function getDailyAttendanceStatuses(dailyAttendance) {
-    return Object.fromEntries(
-        Object.entries(dailyAttendance).filter(([key]) => !key.startsWith("_"))
-    );
-}
-
-function renderAttendanceHistory() {
+async function renderAttendanceHistory() {
     const historyBody = document.getElementById("attendanceHistoryBody");
     if (!historyBody) return;
 
-    const attendance = getAttendance();
-    const students = getStudents();
-    const dates = Object.keys(attendance).sort((a, b) => new Date(b) - new Date(a));
+    const sheets = await apiRequest("/attendance");
 
-    if (!dates.length) {
+    if (!sheets.length) {
         historyBody.innerHTML = emptyTableRow("No submitted attendance history yet.", 5);
         return;
     }
 
-    historyBody.innerHTML = dates.map((date) => {
-        const dailyAttendance = getDailyAttendanceStatuses(attendance[date] || {});
-        const presentCount = students.filter((student) => dailyAttendance[student.id] === "Present").length;
-        const absentCount = students.filter((student) => dailyAttendance[student.id] === "Absent").length;
-        const pendingCount = Math.max(students.length - presentCount - absentCount, 0);
+    historyBody.innerHTML = sheets.map((sheet) => {
+        const presentCount = sheet.records.filter((entry) => entry.status === "Present").length;
+        const absentCount = sheet.records.filter((entry) => entry.status === "Absent").length;
+        const pendingCount = sheet.records.filter((entry) => entry.status === "Pending").length;
+        const date = toInputDate(sheet.date);
 
         return `
             <tr>
-                <td>${formatDate(date)}</td>
+                <td>${formatDate(sheet.date)}</td>
                 <td>${presentCount}</td>
                 <td>${absentCount}</td>
                 <td>${pendingCount}</td>
@@ -892,31 +875,19 @@ function renderAttendanceHistory() {
     }).join("");
 }
 
-function viewAttendanceHistory(date) {
+async function viewAttendanceHistory(date) {
     const dateInput = document.getElementById("attendanceDate");
     dateInput.value = date;
-    loadAttendanceDraft(date);
+    await loadAttendanceDraft(date);
     renderAttendanceTable();
     showAttendanceMessage(`Showing saved sheet for ${formatDate(date)}.`);
     window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function showAttendanceMessage(text) {
-    const message = document.getElementById("attendanceSaveMessage");
-    if (!message) return;
-    message.textContent = text;
-    message.classList.remove("d-none");
-}
+window.viewAttendanceHistory = viewAttendanceHistory;
 
-function hideAttendanceMessage() {
-    const message = document.getElementById("attendanceSaveMessage");
-    if (!message) return;
-    message.textContent = "";
-    message.classList.add("d-none");
-}
-
-function initProfilePage() {
-    const profile = getProfile();
+async function initProfilePage() {
+    const profile = await apiRequest("/profile");
     setProfileUI(profile);
 
     document.getElementById("profileName").value = profile.name || "";
@@ -927,8 +898,9 @@ function initProfilePage() {
     document.getElementById("profileLocation").value = profile.location || "";
     document.getElementById("profileBio").value = profile.bio || "";
 
-    document.getElementById("profileForm").addEventListener("submit", (event) => {
+    document.getElementById("profileForm")?.addEventListener("submit", async (event) => {
         event.preventDefault();
+
         const updatedProfile = {
             name: document.getElementById("profileName").value.trim(),
             role: document.getElementById("profileRole").value.trim(),
@@ -938,64 +910,77 @@ function initProfilePage() {
             location: document.getElementById("profileLocation").value.trim(),
             bio: document.getElementById("profileBio").value.trim()
         };
-        saveProfile(updatedProfile);
-        saveSession({
-            name: updatedProfile.name,
-            role: updatedProfile.role,
-            email: updatedProfile.email
+
+        const savedProfile = await apiRequest("/profile", {
+            method: "PUT",
+            body: JSON.stringify(updatedProfile)
         });
-        setProfileUI(updatedProfile);
+
+        saveSession({
+            name: savedProfile.name,
+            role: savedProfile.role,
+            email: savedProfile.email
+        });
+
+        setProfileUI(savedProfile);
         renderNavbar();
+        showToast("Profile updated", "success");
     });
 }
 
 function setProfileUI(profile) {
-    document.getElementById("profileNameCard").textContent = profile.name || "Admin User";
-    document.getElementById("profileRoleCard").textContent = profile.role || "Administrator";
-    document.getElementById("profileInstituteCard").textContent = profile.institute || "Institute";
+    setText("profileNameCard", profile.name || "Admin User");
+    setText("profileRoleCard", profile.role || "Administrator");
+    setText("profileInstituteCard", profile.institute || "Institute");
 }
 
-function populateCourseSelect(selectElement) {
+async function populateCourseSelect(selectElement) {
     if (!selectElement) return;
-    const courses = getCourses();
-    if (!courses.length) {
+
+    allCourses = await apiRequest("/courses");
+
+    if (!allCourses.length) {
         selectElement.innerHTML = `<option value="">No courses available</option>`;
         return;
     }
-    selectElement.innerHTML = courses.map((course) => `
+
+    selectElement.innerHTML = allCourses.map((course) => `
         <option value="${course.name}">${course.name}</option>
     `).join("");
 }
 
-function populateStudentSelect(selectElement) {
+async function populateStudentSelect(selectElement) {
     if (!selectElement) return;
-    const students = getStudents();
-    if (!students.length) {
+
+    allStudents = await apiRequest("/students");
+
+    if (!allStudents.length) {
         selectElement.innerHTML = `<option value="">No students available</option>`;
         return;
     }
-    selectElement.innerHTML = students.map((student) => `
+
+    selectElement.innerHTML = allStudents.map((student) => `
         <option value="${student.name}">${student.name}</option>
     `).join("");
 }
 
-function countStudentsByCourse(courseName) {
-    return getStudents().filter((student) => student.course === courseName).length;
-}
-
 function statusBadge(status) {
-    const normalized = String(status).toLowerCase();
+    const normalized = String(status || "Pending").toLowerCase();
+
     const className = {
         active: "status-active",
         paid: "status-paid",
+        success: "status-paid",
         present: "status-present",
         pending: "status-pending",
         partial: "status-partial",
         completed: "status-completed",
-        absent: "status-absent"
+        inactive: "status-absent",
+        absent: "status-absent",
+        failed: "status-absent"
     }[normalized] || "status-pending";
 
-    return `<span class="status-badge ${className}">${status}</span>`;
+    return `<span class="status-badge ${className}">${status || "Pending"}</span>`;
 }
 
 function formatCurrency(amount) {
@@ -1008,11 +993,17 @@ function formatCurrency(amount) {
 
 function formatDate(dateString) {
     if (!dateString) return "N/A";
+
     return new Date(dateString).toLocaleDateString("en-IN", {
         day: "2-digit",
         month: "short",
         year: "numeric"
     });
+}
+
+function toInputDate(dateString) {
+    if (!dateString) return "";
+    return new Date(dateString).toISOString().split("T")[0];
 }
 
 function emptyTableRow(message, colSpan = 5) {
@@ -1028,185 +1019,117 @@ function emptyTableRow(message, colSpan = 5) {
     `;
 }
 
-async function loadStudentsFromAPI() {
-    const loading = document.getElementById("loadingText");
-    if (loading) loading.style.display = "block";
-    
-    const res = await fetch("http://localhost:5000/api/students");
-    const data = await res.json();
+function setText(id, value) {
+    const element = document.getElementById(id);
+    if (element) element.textContent = value;
+}
 
-    if (loading) loading.style.display = "none";
+function getStudentExtraDetails() {
+    return JSON.parse(localStorage.getItem("erp_student_extra_details") || "{}");
+}
 
-    console.log("API DATA:", data);
+function saveStudentExtraDetails(studentId, email, details) {
+    const extras = getStudentExtraDetails();
+    const cleanDetails = {
+        loginPassword: details.password || details.loginPassword || "",
+        fatherName: details.fatherName || "",
+        motherName: details.motherName || "",
+        dateOfBirth: details.dateOfBirth || "",
+        category: details.category || "",
+        duration: details.duration || "",
+        address: details.address || ""
+    };
 
-    const table = document.getElementById("studentsTableBody");
-
-    if (!table) {
-        console.log("❌ Table not found");
-        return;
+    if (studentId) {
+        extras[studentId] = cleanDetails;
+    }
+    if (email) {
+        extras[String(email).toLowerCase()] = cleanDetails;
     }
 
-    table.innerHTML = "";
-
-    data.forEach((student) => {
-        const row = document.createElement("tr");
-
-        row.innerHTML = `
-    <td>${student.name}</td>
-    <td>${student.email}</td>
-    <td>${student.course}</td>
-    <td>${student.status}</td>
-    <td class="text-end">
-        <button onclick="editStudent('${student._id}')" class="btn btn-sm btn-warning">Edit</button>
-        <button onclick="deleteStudent('${student._id}')" class="btn btn-sm btn-danger">Delete</button>
-    </td>
-`;
-        table.appendChild(row);
-    });
+    localStorage.setItem("erp_student_extra_details", JSON.stringify(extras));
 }
 
-// loadStudentsFromAPI();
+function deleteStudentExtraDetails(studentId) {
+    if (!studentId) return;
 
-// Handle form submission for creating/updating student
-const form = document.getElementById("studentForm");
-
-if (form) {
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-
-        const id = document.getElementById("studentId").value;
-
-        const student = {
-            name: document.getElementById("studentName").value,
-            email: document.getElementById("studentEmail").value,
-            phone: document.getElementById("studentPhone").value,
-            course: document.getElementById("studentCourse").value,
-            status: document.getElementById("studentStatus").value,
-            joinDate: document.getElementById("studentJoinDate").value
-        };
-
-        if (id) {
-            await fetch(`http://localhost:5000/api/students/${id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(student)
-            });
-        } else {
-            await fetch("http://localhost:5000/api/students", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(student)
-            });
-        }
-
-        form.reset();
-        document.getElementById("studentId").value = "";
-
-        loadStudentsFromAPI();
-    });
+    const extras = getStudentExtraDetails();
+    delete extras[studentId];
+    localStorage.setItem("erp_student_extra_details", JSON.stringify(extras));
 }
 
-//delete student by id
-async function deleteStudent(id) {
-    if (!confirm("Delete this student permanently?")) return;
+function mergeStudentExtraDetails(student) {
+    const extras = getStudentExtraDetails();
+    const studentId = student?._id || student?.id;
+    const email = String(student?.email || "").toLowerCase();
+    return {
+        ...student,
+        ...(extras[email] || {}),
+        ...(extras[studentId] || {}),
+        loginPassword: student.loginPassword || extras[studentId]?.loginPassword || extras[email]?.loginPassword,
+        fatherName: student.fatherName || extras[studentId]?.fatherName || extras[email]?.fatherName,
+        motherName: student.motherName || extras[studentId]?.motherName || extras[email]?.motherName,
+        dateOfBirth: student.dateOfBirth || extras[studentId]?.dateOfBirth || extras[email]?.dateOfBirth,
+        category: student.category || extras[studentId]?.category || extras[email]?.category,
+        duration: student.duration || extras[studentId]?.duration || extras[email]?.duration,
+        address: student.address || extras[studentId]?.address || extras[email]?.address
+    };
+}
 
-    await fetch(`http://localhost:5000/api/students/${id}`, {
-        method: "DELETE"
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function generateStudentPassword() {
+    return `ERP${Math.random().toString(36).slice(2, 8)}`;
+}
+
+async function confirmAction(text) {
+    if (typeof Swal === "undefined") {
+        return window.confirm(text);
+    }
+
+    const result = await Swal.fire({
+        title: "Are you sure?",
+        text,
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#3085d6",
+        confirmButtonText: "Yes"
     });
 
-    loadStudentsFromAPI(); // reload table
+    return result.isConfirmed;
 }
 
-// edit student - fill form with existing data and open modal
-async function editStudent(id) {
-    const res = await fetch(`http://localhost:5000/api/students`);
-    const data = await res.json();
-
-    const student = data.find(s => s._id === id);
-
-    // fill form
-    document.getElementById("studentId").value = student._id;
-    document.getElementById("studentName").value = student.name;
-    document.getElementById("studentEmail").value = student.email;
-    document.getElementById("studentPhone").value = student.phone;
-    document.getElementById("studentCourse").value = student.course;
-    document.getElementById("studentStatus").value = student.status;
-    document.getElementById("studentJoinDate").value = student.joinDate;
-
-    // open modal
-    const modal = new bootstrap.Modal(document.getElementById("studentModal"));
-    modal.show();
+function showToast(text, icon = "success") {
+    if (typeof Swal !== "undefined") {
+        Swal.fire({
+            icon,
+            title: text,
+            timer: 1400,
+            showConfirmButton: false
+        });
+    }
 }
 
-// Render students in table
-function renderStudents(data) {
-    const table = document.getElementById("studentsTableBody");
+function showAttendanceMessage(text) {
+    const message = document.getElementById("attendanceSaveMessage");
+    if (!message) return;
 
-    if (!table) return;
-
-    table.innerHTML = "";
-
-    data.forEach((student) => {
-        const row = document.createElement("tr");
-
-        row.innerHTML = `
-            <td>${student.name}</td>
-            <td>${student.email}</td>
-            <td>${student.course}</td>
-            <td>${student.status}</td>
-            <td class="text-end">
-                <button onclick="editStudent('${student._id}')">Edit</button>
-                <button onclick="deleteStudent('${student._id}')">Delete</button>
-            </td>
-        `;
-
-        table.appendChild(row);
-    });
+    message.textContent = text;
+    message.classList.remove("d-none");
 }
 
-// Search functionality
-const searchInput = document.getElementById("studentSearch");
+function hideAttendanceMessage() {
+    const message = document.getElementById("attendanceSaveMessage");
+    if (!message) return;
 
-if (searchInput) {
-    searchInput.addEventListener("input", () => {
-        const value = searchInput.value.toLowerCase();
-
-        const filtered = allStudents.filter((student) =>
-            student.name.toLowerCase().includes(value) ||
-            student.course.toLowerCase().includes(value)
-        );
-
-        renderStudents(filtered);
-    });
+    message.textContent = "";
+    message.classList.add("d-none");
 }
-
-// Load dashboard stats
-async function loadDashboardStats() {
-    const res = await fetch("http://localhost:5000/api/students");
-    const data = await res.json();
-
-    allStudents = data;
-
-    const total = data.length;
-    const active = data.filter(s => s.status === "Active").length;
-    const pending = data.filter(s => s.status === "Pending").length;
-    const completed = data.filter(s => s.status === "Completed").length;
-
-    document.getElementById("totalStudents").innerText = total;
-    document.getElementById("activeStudents").innerText = active;
-    document.getElementById("pendingStudents").innerText = pending;
-    document.getElementById("completedStudents").innerText = completed;
-}
-
-
-// Initial page load actions
-const page = document.body.dataset.page;
-
-if (page === "students") {
-    loadStudentsFromAPI();
-}
-
-if (page === "dashboard") {
-    loadDashboardStats();
-}
-

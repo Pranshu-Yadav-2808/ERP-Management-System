@@ -22,9 +22,6 @@
                         <h1 class="page-title">Manage Students</h1>
                         <!-- <p class="text-secondary mb-0">Create, update, and remove student records with localStorage-backed CRUD.</p> -->
                     </div>
-                    <button class="btn btn-primary primary-action" data-bs-toggle="modal" data-bs-target="#studentModal">
-                        <i class="bi bi-person-plus me-2"></i>Add Student
-                    </button>
                 </section>
 
                 <section class="panel-card">
@@ -33,15 +30,20 @@
                             <i class="bi bi-search"></i>
                             <input type="search" class="form-control" id="studentSearch" placeholder="Search students by name or course">
                         </div>
+                        <button class="btn btn-primary primary-action" data-bs-toggle="modal" data-bs-target="#studentModal">
+                            <i class="bi bi-person-plus me-2"></i>New Registration
+                        </button>
                     </div>
                     <div id="loadingText">Loading...</div>
                     <div class="table-responsive">
                         <table class="table align-middle custom-table">
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Course</th>
+                                    <th>Student Details</th>
+                                    <th>Parent Details</th>
+                                    <th>DOB / Category</th>
+                                    <th>Course Details</th>
+                                    <th>Address</th>
                                     <th>Status</th>
                                     <th class="text-end">Actions</th>
                                 </tr>
@@ -59,8 +61,8 @@
             <div class="modal-content border-0">
                 <div class="modal-header">
                     <div>
-                        <h2 class="modal-title fs-5" id="studentModalLabel">Add Student</h2>
-                        <p class="text-secondary mb-0 small">Save student profile details into localStorage.</p>
+                        <h2 class="modal-title fs-5" id="studentModalLabel">New Registration</h2>
+                        <p class="text-secondary mb-0 small">Create student profile and login details.</p>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -69,7 +71,7 @@
                         <input type="hidden" id="studentId">
                         <div class="row g-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="studentName">Full Name</label>
+                                <label class="form-label" for="studentName">Student Name</label>
                                 <input class="form-control" id="studentName" required>
                             </div>
                             <div class="col-md-6">
@@ -77,24 +79,62 @@
                                 <input class="form-control" id="studentEmail" type="email" required>
                             </div>
                             <div class="col-md-6">
+                                <label class="form-label" for="studentPassword">Password</label>
+                                <input class="form-control" id="studentPassword" type="text" minlength="6" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentPhone">Phone Number</label>
+                                <input class="form-control" id="studentPhone" type="tel" pattern="[0-9]{10}" maxlength="10" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentFatherName">Father Name</label>
+                                <input class="form-control" id="studentFatherName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentMotherName">Mother Name</label>
+                                <input class="form-control" id="studentMotherName" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentDob">Date of Birth</label>
+                                <input class="form-control" id="studentDob" type="date" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentCategory">Category</label>
+                                <select class="form-select" id="studentCategory" required>
+                                    <option>General</option>
+                                    <option>OBC</option>
+                                    <option>SC</option>
+                                    <option>ST</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
                                 <label class="form-label" for="studentCourse">Course</label>
                                 <select class="form-select" id="studentCourse" required></select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label" for="studentDuration">Duration</label>
+                                <select class="form-select" id="studentDuration" required>
+                                    <option>45 Days</option>
+                                    <option>3 Months</option>
+                                    <option>6 Months</option>
+                                </select>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="studentStatus">Status</label>
                                 <select class="form-select" id="studentStatus" required>
                                     <option>Active</option>
-                                    <option>Pending</option>
+                                    <option>Inactive</option>
                                     <option>Completed</option>
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label" for="studentPhone">Phone</label>
-                                <input class="form-control" id="studentPhone" required>
-                            </div>
-                            <div class="col-md-6">
                                 <label class="form-label" for="studentJoinDate">Join Date</label>
                                 <input class="form-control" id="studentJoinDate" type="date" required>
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label" for="studentAddress">Address</label>
+                                <textarea class="form-control" id="studentAddress" rows="3" required></textarea>
                             </div>
                         </div>
                     </div>
@@ -106,9 +146,9 @@
             </div>
         </div>
     </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/script.js"></script>
+    <script src="js/script.js?v=student-registration-full-details"></script>
 </body>
 
 </html>
